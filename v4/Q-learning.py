@@ -64,7 +64,7 @@ q_turn = WHITE
 
 max_num_of_turn = 16
 num_consecutive_iterations = 100
-num_episode = 100
+num_episode = 100001
 goal_average_reward = 90
 q_table = np.random.uniform(low=-10, high=10, size=(3**16, 16))
 total_reward_vec = np.zeros(num_consecutive_iterations)
@@ -89,28 +89,31 @@ for episode in range(num_episode):
 
     for turn in range(max_num_of_turn):
 
-        winner = othello.game_loop((action // 4 + 1) * 6 + (action % 4 + 1))
-        observation = return_board(othello.board_class.board)
+        if (turn+1)%2==q_turn%2:
+            winner = othello.game_loop((action // 4 + 1) * 6 + (action % 4 + 1))
+            observation = return_board(othello.board_class.board)
 
-        reward = 0
-        if winner!=-1:
-            if winner==q_turn:
-                reward = 10
-            elif winner==q_turn%2+1:
-                reward = -10
+            reward = 0
+            if winner!=-1:
+                if winner==q_turn:
+                    reward = 10
+                elif winner==q_turn%2+1:
+                    reward = -10
 
-        episode_reward += reward
+            episode_reward += reward
 
-        next_state = convert_state(observation)
-        q_table = update_q_table(q_table, state, action, reward, next_state)
+            next_state = convert_state(observation)
+            q_table = update_q_table(q_table, state, action, reward, next_state)
 
-        othello.board_class.find_placeable(BLACK if turn%2==1 else WHITE)
-        placeable_list = [i for i, stone in enumerate(return_board(othello.board_class.board)) if stone==PLACEABLE]
-        othello.board_class.delete_placeable()
-        if len(placeable_list)>0:
-            action = get_action(next_state, episode, placeable_list)
+            othello.board_class.find_placeable(BLACK if turn%2==1 else WHITE)
+            placeable_list = [i for i, stone in enumerate(return_board(othello.board_class.board)) if stone==PLACEABLE]
+            othello.board_class.delete_placeable()
+            if len(placeable_list)>0:
+                action = get_action(next_state, episode, placeable_list)
+            else:
+                action = -1
         else:
-            action = -1
+            winner = othello.game_loop(4)
 
 
         if winner!=-1:

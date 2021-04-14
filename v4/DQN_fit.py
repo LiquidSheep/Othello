@@ -106,7 +106,7 @@ q_turn = WHITE
 
 max_num_of_turn = 16
 num_consecutive_iterations = 100
-num_episodes = 20
+num_episodes = 100
 goal_average_reward = 90
 total_reward_vec = np.zeros(num_consecutive_iterations)
 gamma = 0.99
@@ -129,7 +129,7 @@ for episode in range(num_episodes):  # 試行数分繰り返す
     #env.reset()  # cartPoleの環境初期化
     othello.reset()
     #state, reward, done, _ = env.step(env.action_space.sample())  # 1step目は適当な行動をとる
-    othello.game_loop(4)
+    winner = othello.game_loop(4)
     state = return_board(othello.board_class.board)
     state = np.reshape(state, [1, 16])   # list型のstateを、1行4列の行列に変換
     episode_reward = 0
@@ -138,29 +138,32 @@ for episode in range(num_episodes):  # 試行数分繰り返す
 
     for t in range(max_num_of_turn + 1):  # 1試行のループ
 
-        action = actor.get_action(state, episode, mainQN)   # 時刻tでの行動を決定する
-        #next_state, reward, done, info = env.step(action)   # 行動a_tの実行による、s_{t+1}, _R{t}を計算する
-        winner = othello.game_loop((action // 4 + 1) * 6 + (action % 4 + 1))
-        next_state = return_board(othello.board_class.board)
-        next_state = np.reshape(next_state, [1, 16]) # list型のstateを、1行4列の行列に変換
+        if (t+1)%2==q_turn%2:
+            action = actor.get_action(state, episode, mainQN)   # 時刻tでの行動を決定する
+            #next_state, reward, done, info = env.step(action)   # 行動a_tの実行による、s_{t+1}, _R{t}を計算する
+            winner = othello.game_loop((action // 4 + 1) * 6 + (action % 4 + 1))
+            next_state = return_board(othello.board_class.board)
+            next_state = np.reshape(next_state, [1, 16]) # list型のstateを、1行4列の行列に変換
 
-        reward = 0
-        if winner!=-1:
-            next_state = np.zeros(state.shape)
-            if winner==q_turn:
-                reward = 1
-            elif winner==q_turn%2+1:
-                reward = -1
+            reward = 0
+            if winner!=-1:
+                next_state = np.zeros(state.shape)
+                if winner==q_turn:
+                    reward = 1
+                elif winner==q_turn%2+1:
+                    reward = -1
 
-        episode_reward += reward
+            episode_reward += reward
 
-        memory.add((state, action, reward, next_state))     # メモリの更新する
-        state = next_state  # 状態更新
+            memory.add((state, action, reward, next_state))     # メモリの更新する
+            state = next_state  # 状態更新
 
 
-        # Qネットワークの重みを学習・更新する replay
-        if (memory.len() > batch_size) and not islearned:
-            mainQN.replay(memory, batch_size, gamma, targetQN)
+            # Qネットワークの重みを学習・更新する replay
+            if (memory.len() > batch_size) and not islearned:
+                mainQN.replay(memory, batch_size, gamma, targetQN)
+        else:
+            winner = othello.game_loop(4)
 
         # 1施行終了時の処理
         if winner!=-1:
@@ -181,3 +184,6 @@ for episode in range(num_episodes):  # 試行数分繰り返す
     if total_reward_vec.mean() >= goal_average_reward:
         print('Episode %d train agent successfuly!' % episode)
         islearned = 1
+
+mainQN.model.save("./dqn_main_model_100_1.h5")
+targetQN.model.save("./dqn_model_target_100_1.h5")
